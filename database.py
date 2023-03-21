@@ -1,22 +1,29 @@
 import psycopg2
+from sqlalchemy import create_engine, BigInteger, Float, Boolean, Text, DateTime
 from config import pg_host, pg_db, pg_user, pg_pass
+import numpy as np
+import pandas as pd
 
-conn = psycopg2.connect(
-    host= pg_host
-    database=pg_db
-    user=pg_user
-    password=pg_pass
-)
+#takes dataframe, 
+def update_table(df,table_name):
+    conn = psycopg2.connect(
+        host= pg_host,
+        database=pg_db,
+        user=pg_user,
+        password=pg_pass
+    )
 
-# Create a cursor object
-cur = conn.cursor()
+    engine = create_engine('postgresql://'+pg_user+':'+pg_pass+'@'+pg_host+':5432/'+pg_db+'')
 
-# Insert data into the "test" table
-cur.execute("INSERT INTO test (item, price) VALUES (%s, %s)", ("value1", 123))
+    dtype_map = {
+        np.dtype('int64'): BigInteger(),
+        np.dtype('float64'): Float(),
+        np.dtype('datetime64[ns]'): DateTime(),
+        np.dtype('bool'): Boolean(),
+        np.dtype('object'): Text(),
+    }
 
-# Commit the transaction
-conn.commit()
+    df.head(0).to_sql(name=table_name, con=engine, if_exists='replace')
 
-# Close the cursor and connection
-cur.close()
-conn.close()
+    # insert data into the table
+    df.to_sql(name=table_name, con=engine, if_exists='append', index=False, dtype=dtype_map)
